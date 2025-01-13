@@ -38,15 +38,17 @@ public class ObjectMapper {
             return null;
         }
 
+        // 1. List<?>, Map<String, ?> 등 제네릭 타입 처리
         if (type instanceof ParameterizedType pType) {
-            // 예: List<?>, Map<String, ?> 등 제네릭 타입 처리
             return handleParameterizedType(object, pType);
+        }
 
-        } else if (type instanceof Class<?> clazz) {
-            // 예: String, Integer, MyDto ... 등 클래스 타입 처리
+        // 2. String, Integer, MyDto ... 등 클래스 타입 처리
+        if (type instanceof Class<?> clazz) {
             return handleClassType(object, clazz);
+        }
 
-        } else {
+        else {
             throw new UnsupportedOperationException("지원하지 않는 타입: " + type);
         }
     }
@@ -58,18 +60,20 @@ public class ObjectMapper {
         // 1. List<T>
         if (rawType == List.class) {
             return handleList(object, actualTypes[0]);
+        }
 
-            // 2. Set<T>
-        } else if (rawType == Set.class) {
+        // 2. Set<T>
+        if (rawType == Set.class) {
             return handleSet(object, actualTypes[0]);
+        }
 
-            // 3. Map<K, V>
-        } else if (rawType == Map.class) {
+        // 3. Map<K, V>
+        if (rawType == Map.class) {
             return handleMap(object, actualTypes[0], actualTypes[1]);
         }
 
         // 그 외 커스텀 제네릭(예: Optional<T>, Queue<T> 등)
-        throw new UnsupportedOperationException("아직 지원하지 않는 ParameterizedType입니다. : " + rawType);
+        throw new UnsupportedOperationException("아직 지원하지 않는 제네릭 타입입니다. : " + rawType);
     }
 
     private Object handleClassType(Object object, Class<?> clazz) {
