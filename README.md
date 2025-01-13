@@ -149,7 +149,7 @@ cd myspringboot
 build.gradle의 dependencies에 다음과 같은 코드를 추가합니다.
 
 ```groovy
-implementation files('libs/mini-springboot-0.1-SNAPSHOT-all.jar')
+implementation files('libs/myspringboot-1.0-SNAPSHOT-all.jar')
 ```
 
 ### 5. 애플리케이션 클래스 생성
