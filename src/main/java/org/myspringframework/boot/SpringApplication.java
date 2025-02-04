@@ -5,6 +5,7 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.myspringframework.annotations.SpringBootApplication;
 import org.myspringframework.context.ApplicationContext;
+import org.myspringframework.context.InternalBeanRegistrar;
 import org.myspringframework.web.servlet.DispatcherServlet;
 
 public class SpringApplication {
@@ -18,6 +19,9 @@ public class SpringApplication {
         printBanner();
 
         ApplicationContext context = new ApplicationContext();
+        InternalBeanRegistrar beanRegistrar = new InternalBeanRegistrar();
+
+        beanRegistrar.registerBeans(context);
         context.refresh(primarySource);
 
         startServer(context);

@@ -6,11 +6,6 @@ import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.myspringframework.annotations.Autowired;
 import org.myspringframework.annotations.Component;
-import org.myspringframework.mapper.JsonParser;
-import org.myspringframework.mapper.ObjectMapper;
-import org.myspringframework.web.servlet.DispatcherServlet;
-import org.myspringframework.web.servlet.HandlerAdapter;
-import org.myspringframework.web.servlet.HandlerMapping;
 
 import java.io.File;
 import java.lang.annotation.Annotation;
@@ -30,16 +25,7 @@ public class ApplicationContext {
 
     public void refresh(Class<?> primarySource) {
         scanAndRegisterBeans(primarySource.getPackageName());
-        registerSpringBean();
         autowire();
-    }
-
-    private void registerSpringBean() {
-        registerBean(HandlerMapping.class, new HandlerMapping(this));
-        registerBean(HandlerAdapter.class, new HandlerAdapter());
-        registerBean(DispatcherServlet.class, new DispatcherServlet());
-        registerBean(ObjectMapper.class, new ObjectMapper());
-        registerBean(JsonParser.class, new JsonParser());
     }
 
     public void scanAndRegisterBeans(String basePackage) {
