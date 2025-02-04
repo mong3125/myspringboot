@@ -16,9 +16,10 @@ import java.io.File;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.net.URL;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 public class ApplicationContext {
     private Map<Class<?>, Object> beanRegistry;
@@ -42,28 +43,90 @@ public class ApplicationContext {
     }
 
     public void scanAndRegisterBeans(String basePackage) {
-        try {
-            String path = basePackage.replace('.', '/');
-            URL resource = Thread.currentThread().getContextClassLoader().getResource(path);
-            if (resource == null) {
-                return;
+        List<Class<?>> classes = scanClasses(basePackage);
+        for (Class<?> clazz : classes) {
+            if (isComponent(clazz)) {
+                registerBean(clazz);
             }
-            File directory = new File(resource.toURI());
-            for (File file : Objects.requireNonNull(directory.listFiles())) {
-                if (file.isDirectory()) {
-                    scanAndRegisterBeans(basePackage + '.' + file.getName());
-                } else if (file.getName().endsWith(".class")) {
-                    String className = basePackage + '.' + file.getName().substring(0, file.getName().length() - 6);
-                    Class<?> clazz = Class.forName(className);
+        }
+    }
 
-                    if (isComponent(clazz)) {
-                        registerBean(clazz);
-                    }
-                }
+    private List<Class<?>> scanClasses(String basePackage) {
+        List<Class<?>> classes = new ArrayList<>();
+        String path = basePackage.replace('.', '/');
+        URL resource = Thread.currentThread().getContextClassLoader().getResource(path);
+        if (resource == null) {
+            throw new RuntimeException("Resource not found for base package: " + basePackage);
+        }
+
+        try {
+            String protocol = resource.getProtocol();
+            if ("file".equals(protocol)) {
+                classes.addAll(scanClassesFromFileSystem(new File(resource.toURI()), basePackage));
+            } else if ("jar".equals(protocol)) {
+                classes.addAll(scanClassesFromJar(resource, path));
+            } else {
+                throw new RuntimeException("Unsupported protocol: " + protocol);
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed to scan and register beans", e);
+            throw new RuntimeException("Failed to scan classes in package: " + basePackage, e);
         }
+        return classes;
+    }
+
+    private List<Class<?>> scanClassesFromFileSystem(File directory, String packageName) throws Exception {
+        List<Class<?>> classes = new ArrayList<>();
+
+        // 디렉토리가 존재하지 않으면 빈 리스트 반환
+        if (!directory.exists()) {
+            return classes;
+        }
+
+        // 디렉토리 내 모든 파일 및 디렉토리에 대해 클래스 파일 스캔
+        for (File file : Objects.requireNonNull(directory.listFiles())) {
+            // 디렉토리인 경우 재귀적으로 클래스 파일 스캔
+            if (file.isDirectory()) {
+                classes.addAll(scanClassesFromFileSystem(file, packageName + "." + file.getName()));
+            }
+            // 클래스 파일인 경우 클래스로 등록
+            else if (file.getName().endsWith(".class")) {
+                String className = packageName + "." + file.getName().substring(0, file.getName().length() - 6);
+                classes.add(Class.forName(className));
+            }
+        }
+        return classes;
+    }
+
+    private List<Class<?>> scanClassesFromJar(URL resource, String path) throws Exception {
+        List<Class<?>> classes = new ArrayList<>();
+
+        // 실제 JAR 파일 경로 추출 (예: "file:/path/to.jar" 부분 추출)
+        String resourcePath = resource.getPath();
+        int separatorIndex = resourcePath.indexOf("!/");
+        String jarPath = resourcePath.substring(0, separatorIndex);
+
+        // JAR 파일 경로에서 "file:" 제거
+        if (jarPath.startsWith("file:")) {
+            jarPath = jarPath.substring(5); // "file:" 제거
+        }
+
+        // JAR 파일 내 클래스 파일 스캔
+        try (JarFile jarFile = new JarFile(jarPath)) {
+            Enumeration<JarEntry> entries = jarFile.entries();
+
+            // JAR 파일 내 모든 엔트리에 대해 클래스 파일 스캔
+            while (entries.hasMoreElements()) {
+                JarEntry entry = entries.nextElement();
+                String entryName = entry.getName();
+
+                // 지정된 패키지 경로에 속하고 클래스 파일인 경우 클래스로 등록
+                if (entryName.startsWith(path) && entryName.endsWith(".class") && !entry.isDirectory()) {
+                    String className = entryName.replace('/', '.').substring(0, entryName.length() - 6);
+                    classes.add(Class.forName(className));
+                }
+            }
+        }
+        return classes;
     }
 
     private boolean isComponent(Class<?> clazz) {
